@@ -143,10 +143,10 @@ pub use crate::serde::{
 #[cfg_attr(docsrs, doc(cfg(feature = "serialize")))]
 pub mod serde;
 
-#[cfg(any(feature = "mlua_derive"))]
+#[cfg(any(feature = "mglua_derive"))]
 #[allow(unused_imports)]
 #[macro_use]
-extern crate mlua_derive;
+extern crate mglua_derive;
 
 // Unstable features
 #[cfg(all(feature = "unstable", not(feature = "send")))]
@@ -206,7 +206,7 @@ pub use crate::{function::OwnedFunction, table::OwnedTable};
 /// [`IntoLua`]: crate::IntoLua
 #[cfg(any(feature = "macros"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
-pub use mlua_derive::chunk;
+pub use mglua_derive::chunk;
 
 /// Registers Lua module entrypoint.
 ///
@@ -227,4 +227,4 @@ pub use mlua_derive::chunk;
 ///
 #[cfg(any(feature = "module", docsrs))]
 #[cfg_attr(docsrs, doc(cfg(feature = "module")))]
-pub use mlua_derive::lua_module;
+pub use mglua_derive::lua_module;

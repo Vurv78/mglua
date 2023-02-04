@@ -1,115 +1,84 @@
-#[cfg_attr(
-    any(
-        feature = "luau",
-        all(
-            feature = "vendored",
-            any(
-                feature = "lua54",
-                feature = "lua53",
-                feature = "lua52",
-                feature = "lua51",
-                feature = "luajit"
-            )
-        )
-    ),
-    path = "find_vendored.rs"
-)]
-#[cfg_attr(
-    all(
-        not(feature = "vendored"),
-        any(
-            feature = "lua54",
-            feature = "lua53",
-            feature = "lua52",
-            feature = "lua51",
-            feature = "luajit"
-        )
-    ),
-    path = "find_normal.rs"
-)]
-#[cfg_attr(
-    not(any(
-        feature = "lua54",
-        feature = "lua53",
-        feature = "lua52",
-        feature = "lua51",
-        feature = "luajit",
-        feature = "luau"
-    )),
-    path = "find_dummy.rs"
-)]
-mod find;
+use std::path::PathBuf;
+
+use winreg::{
+	enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE},
+	RegKey,
+};
+
+const STEAM_PATHS: &[&str] = &[
+	"SOFTWARE\\WOW6432Node\\Valve\\Steam",
+	"SOFTWARE\\Valve\\Steam",
+];
+
+const HKEYS: &[RegKey] = &[
+	RegKey::predef(HKEY_LOCAL_MACHINE),
+	RegKey::predef(HKEY_CURRENT_USER),
+];
+
+fn steam_install_dir() -> Option<PathBuf> {
+	STEAM_PATHS
+		.iter()
+		.find_map(|path| {
+			HKEYS.iter().find_map(|regkey| {
+				regkey
+					.open_subkey(path)
+					.map(|path| path.get_value::<String, &str>("InstallPath"))
+					.map(core::result::Result::ok)
+					.ok()
+					.flatten()
+			})
+		})
+		.map(PathBuf::from)
+}
+
+pub fn gmod_dir() -> Option<PathBuf> {
+	let gmod_dir = steam_install_dir()?
+		.join("steamapps")
+		.join("common")
+		.join("GarrysMod");
+
+	if gmod_dir.exists() {
+		Some(gmod_dir)
+	} else {
+		None
+	}
+}
 
 fn main() {
-    #[cfg(not(any(
-        feature = "lua54",
-        feature = "lua53",
-        feature = "lua52",
-        feature = "lua51",
-        feature = "luajit",
-        feature = "luau"
-    )))]
-    compile_error!(
-        "You must enable one of the features: lua54, lua53, lua52, lua51, luajit, luajit52, luau"
-    );
+	let gmod = gmod_dir()
+		.expect("Couldn't find your garrysmod install.");
 
-    #[cfg(all(
-        feature = "lua54",
-        any(
-            feature = "lua53",
-            feature = "lua52",
-            feature = "lua51",
-            feature = "luajit",
-            feature = "luau"
-        )
-    ))]
-    compile_error!(
-        "You can enable only one of the features: lua54, lua53, lua52, lua51, luajit, luajit52, luau"
-    );
+	#[cfg(target_arch = "x86_64")]
+	let lua_shared = {
+		let x = gmod.join("bin/win64/lua_shared.dll");
+		if x.exists() {
+			Some(x)
+		} else {
+			let x = gmod.join("bin/lua_shared.dll");
+			if x.exists() {
+				Some(x)
+			} else {
+				None
+			}
+		}
+	};
 
-    #[cfg(all(
-        feature = "lua53",
-        any(
-            feature = "lua52",
-            feature = "lua51",
-            feature = "luajit",
-            feature = "luau"
-        )
-    ))]
-    compile_error!(
-        "You can enable only one of the features: lua54, lua53, lua52, lua51, luajit, luajit52, luau"
-    );
+	#[cfg(not(target_arch = "x86_64"))]
+	let lua_shared = {
+		let x = gmod.join("bin/lua_shared.dll");
+		if x.exists() {
+			Some(x)
+		} else {
+			let x = gmod.join("bin/win64/lua_shared.dll");
+			if x.exists() {
+				Some(x)
+			} else {
+				None
+			}
+		}
+	};
 
-    #[cfg(all(
-        feature = "lua52",
-        any(feature = "lua51", feature = "luajit", feature = "luau")
-    ))]
-    compile_error!(
-        "You can enable only one of the features: lua54, lua53, lua52, lua51, luajit, luajit52, luau"
-    );
-
-    #[cfg(all(feature = "lua51", any(feature = "luajit", feature = "luau")))]
-    compile_error!(
-        "You can enable only one of the features: lua54, lua53, lua52, lua51, luajit, luajit52, luau"
-    );
-
-    #[cfg(all(feature = "luajit", feature = "luau"))]
-    compile_error!(
-        "You can enable only one of the features: lua54, lua53, lua52, lua51, luajit, luajit52, luau"
-    );
-
-    // We don't support "vendored module" mode on windows
-    #[cfg(all(feature = "vendored", feature = "module", target_os = "windows"))]
-    compile_error!(
-        "Vendored (static) builds are not supported for modules on Windows.\n"
-            + "Please, use `pkg-config` or custom mode to link to a Lua dll."
-    );
-
-    #[cfg(all(feature = "luau", feature = "module"))]
-    compile_error!("Luau does not support module mode");
-
-    #[cfg(any(not(feature = "module"), target_os = "windows"))]
-    find::probe_lua();
-
-    println!("cargo:rerun-if-changed=build");
+	let lua_shared = lua_shared.expect("Couldn't find lua_shared.dll");
+	println!("cargo:rustc-link-search=native={}", concat!(env!("CARGO_MANIFEST_DIR"), "/build"));
+	println!("cargo:rustc-link-lib=dylib={}", lua_shared.file_stem().unwrap().to_string_lossy());
 }

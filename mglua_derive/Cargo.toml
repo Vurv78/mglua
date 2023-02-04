@@ -1,5 +1,5 @@
 [package]
-name = "mlua_derive"
+name = "mglua_derive"
 version = "0.8.0"
 authors = ["Aleksandr Orlenko <zxteam@pm.me>"]
 edition = "2018"

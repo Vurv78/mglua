@@ -3290,12 +3290,6 @@ unsafe fn load_from_std_lib(state: *mut ffi::lua_State, libs: StdLib) -> Result<
         ffi::lua_pop(state, 1);
     }
 
-    #[cfg(not(feature = "luau"))]
-    if libs.contains(StdLib::IO) {
-        requiref(state, ffi::LUA_IOLIBNAME, ffi::luaopen_io, 1)?;
-        ffi::lua_pop(state, 1);
-    }
-
     if libs.contains(StdLib::OS) {
         requiref(state, ffi::LUA_OSLIBNAME, ffi::luaopen_os, 1)?;
         ffi::lua_pop(state, 1);
@@ -3350,11 +3344,6 @@ unsafe fn load_from_std_lib(state: *mut ffi::lua_State, libs: StdLib) -> Result<
     {
         if libs.contains(StdLib::JIT) {
             requiref(state, ffi::LUA_JITLIBNAME, ffi::luaopen_jit, 1)?;
-            ffi::lua_pop(state, 1);
-        }
-
-        if libs.contains(StdLib::FFI) {
-            requiref(state, ffi::LUA_FFILIBNAME, ffi::luaopen_ffi, 1)?;
             ffi::lua_pop(state, 1);
         }
     }
